@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:buraco/screens/Home.dart';
 import 'package:buraco/screens/Register.dart';
 import 'package:buraco/services/UserService.dart';
+import 'package:buraco/components/CustomTextField.dart';
+import 'package:buraco/components/CustomButton.dart';
+import 'package:buraco/components/CustomAppBar.dart';
 
 class Login extends StatefulWidget {
   const Login({Key? key}) : super(key: key);
@@ -11,6 +14,7 @@ class Login extends StatefulWidget {
   @override
   _LoginState createState() => _LoginState();
 }
+
 class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -19,29 +23,43 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
+      appBar: const CustomAppBar(
+        title: 'Login',
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: CustomTextField(
+                controller: _emailController,
+                labelText: 'Email',
+                prefixIcon: const Icon(Icons.email),
+              ),
             ),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Senha'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: CustomTextField(
+                controller: _passwordController,
+                labelText: 'Senha',
+                prefixIcon: const Icon(Icons.lock),
+                obscureText: true,
+              ),
             ),
-            ElevatedButton(
-              onPressed: _login,
-              child: const Text('Entrar'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: CustomButton(
+                text: 'Entrar',
+                onPressed: _login,
+              ),
             ),
             TextButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => Register()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Register()),
+                );
               },
               child: const Text('Registrar-se'),
             ),
@@ -51,20 +69,21 @@ class _LoginState extends State<Login> {
     );
   }
 
-void _login() async {
-  String email = _emailController.text;
-  String password = _passwordController.text;
+  void _login() async {
+    String email = _emailController.text;
+    String password = _passwordController.text;
 
-  final response = await _userService.login(email, password);
+    final response = await _userService.login(email, password);
 
-  if (response['status'] == 200 && response['data'] != null) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => Home()),
-    );
-  } else {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(response['message'] ?? 'Erro desconhecido')));
+    if (response['status'] == 200 && response['data'] != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => Home()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response['message'] ?? 'Erro desconhecido')),
+      );
+    }
   }
-}
 }
