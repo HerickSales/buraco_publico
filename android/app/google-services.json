@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "157513404210",
+    "project_id": "buraco-75af1",
+    "storage_bucket": "buraco-75af1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157513404210:android:3916211f396f969097d12b",
+        "android_client_info": {
+          "package_name": "com.example.buraco"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7yhVgOF2kb9i_w7Rl_10Zh3lQuXsfupM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157513404210:android:7b4eccc6e831349097d12b",
+        "android_client_info": {
+          "package_name": "com.hericksales.buraco"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7yhVgOF2kb9i_w7Rl_10Zh3lQuXsfupM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
