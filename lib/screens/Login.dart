@@ -1,5 +1,6 @@
 //tela para fazer login e cadastro de usuário
 
+import 'package:buraco/services/UserPreferencesService.dart';
 import 'package:flutter/material.dart';
 import 'package:buraco/screens/Home.dart';
 import 'package:buraco/screens/Register.dart';
@@ -23,9 +24,7 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(
-        title: 'Login',
-      ),
+      appBar: const CustomAppBar(title: 'Login'),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -49,10 +48,7 @@ class _LoginState extends State<Login> {
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
-              child: CustomButton(
-                text: 'Entrar',
-                onPressed: _login,
-              ),
+              child: CustomButton(text: 'Entrar', onPressed: _login),
             ),
             TextButton(
               onPressed: () {
@@ -76,6 +72,9 @@ class _LoginState extends State<Login> {
     final response = await _userService.login(email, password);
 
     if (response['status'] == 200 && response['data'] != null) {
+      var userPrefService = UserPreferencesService();
+      userPrefService.saveUserData(response['data']);
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => Home()),

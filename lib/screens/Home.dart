@@ -1,7 +1,15 @@
+import 'package:buraco/components/CustomAppBar.dart';
+import 'package:buraco/components/CustomBottomNav.dart';
+import 'package:buraco/screens/Login.dart';
+import 'package:buraco/services/UserPreferencesService.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:developer' as developer;
 import '../services/AlertService.dart';
+import '../components/AlertMarker.dart';
+import '../components/AlertDetailsDialog.dart';
+import '../components/CreateAlertDialog.dart';
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -13,17 +21,53 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final List<Marker> _marcadores = [];
   final AlertService _alertService = AlertService();
+  final UserPreferencesService _preferencesService = UserPreferencesService();
   final LatLng _posicaoInicial = LatLng(-21.202248, -41.903281);
   int _selectedIndex = 0;
   bool _isLoading = true;
-  
-  // Mapa para armazenar o estado de voto do usuário atual
+
+  String _id = '';
+  String _name = '';
+  String _email = '';
+  String _contact = '';
+
   final Map<String, String?> _userVotes = {};
-  
+
   @override
   void initState() {
     super.initState();
+    _fetchUserData();
     _carregarAlertas();
+  }
+
+  Future<void> _fetchUserData() async {
+    try {
+      Map<String, dynamic>? userData = await _preferencesService.getUserData();
+
+      print(userData.toString());
+
+      if (userData != null) {
+        setState(() {
+          _id = userData['id'] ?? 'No ID';
+          _name = userData['name'] ?? 'No Name';
+          _email = userData['email'] ?? 'No Email';
+          _contact = userData['contato'] ?? 'No Contact';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => Login()),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _carregarAlertas() async {
@@ -31,39 +75,29 @@ class _HomeState extends State<Home> {
       setState(() {
         _isLoading = true;
       });
-      
+
       final resultado = await _alertService.getAllAlerts();
-      
+
       if (resultado['status'] == 200 && resultado['data'] != null) {
         final alertas = resultado['data'] as List<Map<String, dynamic>>;
-        
+
         setState(() {
           _marcadores.clear();
-          
+
           for (var alerta in alertas) {
             final lat = alerta['latitude'] as double;
             final lng = alerta['longitude'] as double;
-            
+
             _marcadores.add(
-              Marker(
+              AlertMarker(
                 point: LatLng(lat, lng),
-                width: 40,
-                height: 40,
-                child: GestureDetector(
-                  onTap: () => _mostrarDetalhesAlerta(alerta),
-                  child: const Icon(
-                    Icons.warning,
-                    color: Colors.red,
-                    size: 40,
-                  ),
-                ),
+                onTap: () => _mostrarDetalhesAlerta(alerta),
               ),
             );
           }
           _isLoading = false;
         });
-        
-        // Carregar os votos do usuário atual
+
         _carregarVotosDoUsuario(alertas);
       } else {
         setState(() {
@@ -71,20 +105,24 @@ class _HomeState extends State<Home> {
         });
       }
     } catch (e) {
-      print("Erro ao carregar alertas: $e");
+      developer.log("Erro ao carregar alertas: $e");
       setState(() {
         _isLoading = false;
       });
     }
   }
-  
-  Future<void> _carregarVotosDoUsuario(List<Map<String, dynamic>> alertas) async {
-    // ID de usuário fixo para testes
+
+  Future<void> _carregarVotosDoUsuario(
+    List<Map<String, dynamic>> alertas,
+  ) async {
     const String userId = "usuario_teste_123";
-    
+
     for (var alerta in alertas) {
       try {
-        final voteCheck = await _alertService.checkUserVote(alerta['id'], userId);
+        final voteCheck = await _alertService.checkUserVote(
+          alerta['id'],
+          userId,
+        );
         if (voteCheck['status'] == 200 && voteCheck['data'] != null) {
           final hasVoted = voteCheck['data']['hasVoted'] as bool;
           if (hasVoted) {
@@ -94,163 +132,130 @@ class _HomeState extends State<Home> {
           }
         }
       } catch (e) {
-        print("Erro ao verificar voto do usuário: $e");
+        developer.log("Erro ao verificar voto do usuário: $e");
       }
     }
   }
-  
+
   void _mostrarDetalhesAlerta(Map<String, dynamic> alerta) {
     final String alertaId = alerta['id'];
     final String? userVoteType = _userVotes[alertaId];
-    
+
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Detalhes do Alerta'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Descrição: ${alerta['description']}'),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => _darUpvote(alerta, setState),
-                      icon: const Icon(Icons.thumb_up),
-                      label: Text('${alerta['ups']}'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: userVoteType == 'up' ? Colors.green.shade800 : Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () => _darDownvote(alerta, setState),
-                      icon: const Icon(Icons.thumb_down),
-                      label: Text('${alerta['downs']}'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: userVoteType == 'down' ? Colors.red.shade800 : Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Fechar'),
-              ),
-            ],
-          );
-        }
+      builder: (context) => AlertDetailsDialog(
+        alerta: alerta,
+        userVoteType: userVoteType,
+        onUpvote: _darUpvote,
+        onDownvote: _darDownvote,
       ),
     );
   }
-  
-  Future<void> _darUpvote(Map<String, dynamic> alerta, StateSetter dialogSetState) async {
+
+  Future<void> _darUpvote(
+    Map<String, dynamic> alerta,
+    StateSetter dialogSetState,
+  ) async {
     try {
       final alertaId = alerta['id'];
-      final resultado = await _alertService.incrementUp(alertaId);
-      
+      final resultado = await _alertService.vote(alertaId, _id, true);
+
       if (resultado['status'] == 200) {
         if (resultado['data'] != null) {
-          // Atualizar o estado do voto do usuário
           final newVoteType = _userVotes[alertaId] == 'up' ? null : 'up';
-          
+
           setState(() {
             _userVotes[alertaId] = newVoteType;
           });
-          
-          // Atualizar os contadores localmente
+
           dialogSetState(() {
             alerta['ups'] = resultado['data']['ups'];
             alerta['downs'] = resultado['data']['downs'];
           });
-          
-          // Atualizar o marcador no mapa
+
           _atualizarMarcador(alertaId, alerta);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Voto registrado!')),
-          );
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Voto registrado!')));
         }
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: ${resultado['message']}')),
         );
       }
     } catch (e) {
-      print("Erro ao dar upvote: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao registrar voto: $e')),
-      );
+      developer.log("Erro ao dar upvote: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao registrar voto: $e')));
     }
   }
-  
-  Future<void> _darDownvote(Map<String, dynamic> alerta, StateSetter dialogSetState) async {
+
+  Future<void> _darDownvote(
+    Map<String, dynamic> alerta,
+    StateSetter dialogSetState,
+  ) async {
     try {
       final alertaId = alerta['id'];
-      final resultado = await _alertService.incrementDown(alertaId);
-      
+      final resultado = await _alertService.vote(alertaId, _id, false);
+
       if (resultado['status'] == 200) {
         if (resultado['data'] != null) {
-          // Atualizar o estado do voto do usuário
           final newVoteType = _userVotes[alertaId] == 'down' ? null : 'down';
-          
+
           setState(() {
             _userVotes[alertaId] = newVoteType;
           });
-          
-          // Atualizar os contadores localmente
+
           dialogSetState(() {
             alerta['ups'] = resultado['data']['ups'];
             alerta['downs'] = resultado['data']['downs'];
           });
-          
-          // Atualizar o marcador no mapa
+
           _atualizarMarcador(alertaId, alerta);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Voto registrado!')),
-          );
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Voto registrado!')));
         }
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: ${resultado['message']}')),
         );
       }
     } catch (e) {
-      print("Erro ao dar downvote: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao registrar voto: $e')),
-      );
+      developer.log("Erro ao dar downvote: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao registrar voto: $e')));
     }
   }
-  
-  void _atualizarMarcador(String alertaId, Map<String, dynamic> alertaAtualizado) {
-    // Encontrar o índice do marcador
+
+  void _atualizarMarcador(
+    String alertaId,
+    Map<String, dynamic> alertaAtualizado,
+  ) {
     final index = _marcadores.indexWhere((marker) {
       if (marker.child is GestureDetector) {
         final gestureDetector = marker.child as GestureDetector;
         if (gestureDetector.onTap != null) {
-          // Este é apenas um hack para identificar o marcador correto
-          // Idealmente, você teria um ID no marcador
           return true;
         }
       }
       return false;
     });
-    
+
     if (index >= 0) {
-      // Atualizar o marcador com os novos dados
       final lat = alertaAtualizado['latitude'] as double;
       final lng = alertaAtualizado['longitude'] as double;
-      
+
       setState(() {
         _marcadores[index] = Marker(
           point: LatLng(lat, lng),
@@ -258,11 +263,7 @@ class _HomeState extends State<Home> {
           height: 40,
           child: GestureDetector(
             onTap: () => _mostrarDetalhesAlerta(alertaAtualizado),
-            child: const Icon(
-              Icons.warning,
-              color: Colors.red,
-              size: 40,
-            ),
+            child: const Icon(Icons.warning, color: Colors.red, size: 40),
           ),
         );
       });
@@ -272,62 +273,30 @@ class _HomeState extends State<Home> {
   void _handleMapTap(LatLng point) {
     _abrirModalCriarAlerta(point);
   }
-  
+
   void _abrirModalCriarAlerta(LatLng ponto) {
-    final descricaoController = TextEditingController();
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Criar Novo Alerta'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Você está criando um alerta neste local.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descricaoController,
-              decoration: const InputDecoration(
-                labelText: 'Descrição (opcional)',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => _criarAlerta(ponto, descricaoController.text),
-            child: const Text('Criar Alerta'),
-          ),
-        ],
-      ),
+      builder: (context) =>
+          CreateAlertDialog(point: ponto, onCreateAlert: _criarAlerta),
     );
   }
-  
+
   Future<void> _criarAlerta(LatLng ponto, String? descricao) async {
     try {
-      // ID de usuário fixo para testes
-      const String userId = "usuario_teste_123";
-      
       final resultado = await _alertService.createAlert(
         coordinates: ponto,
-        userId: userId,
+        userId: _id,
         description: descricao,
       );
-      
+
       Navigator.pop(context);
-      
+
       if (resultado['status'] == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Alerta criado com sucesso!')),
         );
-        
-        // Recarregar os alertas para mostrar o novo
+
         _carregarAlertas();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -336,9 +305,9 @@ class _HomeState extends State<Home> {
       }
     } catch (e) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao criar alerta: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao criar alerta: $e')));
     }
   }
 
@@ -376,26 +345,47 @@ class _HomeState extends State<Home> {
           subdomains: ['a', 'b', 'c'],
           userAgentPackageName: 'com.example.app',
         ),
-        MarkerLayer(
-          markers: _marcadores,
-        ),
+        MarkerLayer(markers: _marcadores),
       ],
     );
   }
 
   Widget _buildProfileScreen() {
-    return Center(
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.person, size: 100),
-          SizedBox(height: 20),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildProfileItem(label: 'ID', value: _id),
+          _buildProfileItem(label: 'Name', value: _name),
+          _buildProfileItem(label: 'Email', value: _email),
+          _buildProfileItem(label: 'Contact', value: _contact),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileItem({required String label, required String value}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            'Perfil do Usuário',
-            style: TextStyle(fontSize: 24),
+            '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          SizedBox(height: 10),
-          Text('Aqui você poderá ver suas informações de perfil'),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -404,33 +394,12 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: _selectedIndex == 0 
-          ? const Text('Mapa de Alertas') 
-          : const Text('Perfil'),
-        actions: [
-          if (_selectedIndex == 0)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _carregarAlertas,
-              tooltip: 'Recarregar alertas',
-            ),
-        ],
+      appBar: CustomAppBar(
+        title: _selectedIndex == 0 ? 'Mapa de Alertas' : 'Perfil',
       ),
       body: _getBody(),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Mapa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
+      bottomNavigationBar: CustomBottomNav(
+        selectedIndex: _selectedIndex,
         onTap: _onItemTapped,
       ),
     );

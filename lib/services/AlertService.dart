@@ -14,16 +14,18 @@ class AlertService {
   }) async {
     try {
       // Criando um novo alerta com os valores padrão para ups e downs
-      DocumentReference docRef = await firestore.collection(collectionName).add({
-        'latitude': coordinates.latitude,
-        'longitude': coordinates.longitude,
-        'userId': userId,
-        'description': description ?? '',
-        'ups': 0,
-        'downs': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      DocumentReference docRef = await firestore
+          .collection(collectionName)
+          .add({
+            'latitude': coordinates.latitude,
+            'longitude': coordinates.longitude,
+            'userId': userId,
+            'description': description ?? '',
+            'ups': 0,
+            'downs': 0,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       return {
         'message': 'Alerta criado com sucesso',
@@ -50,8 +52,11 @@ class AlertService {
   // READ - Obter um alerta pelo ID
   Future<Map<String, dynamic>> getAlertById(String alertId) async {
     try {
-      DocumentSnapshot doc = await firestore.collection(collectionName).doc(alertId).get();
-      
+      DocumentSnapshot doc = await firestore
+          .collection(collectionName)
+          .doc(alertId)
+          .get();
+
       if (!doc.exists) {
         return {
           'message': 'Alerta não encontrado',
@@ -59,15 +64,11 @@ class AlertService {
           'data': null,
         };
       }
-      
+
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       data['id'] = doc.id;
-      
-      return {
-        'message': 'Alerta encontrado',
-        'status': 200,
-        'data': data,
-      };
+
+      return {'message': 'Alerta encontrado', 'status': 200, 'data': data};
     } catch (e) {
       return {
         'message': 'Erro ao buscar alerta: $e',
@@ -81,13 +82,13 @@ class AlertService {
   Future<Map<String, dynamic>> getAllAlerts() async {
     try {
       QuerySnapshot snapshot = await firestore.collection(collectionName).get();
-      
+
       List<Map<String, dynamic>> alerts = snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return data;
       }).toList();
-      
+
       return {
         'message': 'Alertas recuperados com sucesso',
         'status': 200,
@@ -103,7 +104,10 @@ class AlertService {
   }
 
   // CHECK - Verificar se o usuário já votou no alerta
-  Future<Map<String, dynamic>> checkUserVote(String alertId, String userId) async {
+  Future<Map<String, dynamic>> checkUserVote(
+    String alertId,
+    String userId,
+  ) async {
     try {
       QuerySnapshot snapshot = await firestore
           .collection(votesCollectionName)
@@ -111,7 +115,7 @@ class AlertService {
           .where('userId', isEqualTo: userId)
           .limit(1)
           .get();
-      
+
       if (snapshot.docs.isEmpty) {
         return {
           'message': 'Usuário não votou neste alerta',
@@ -119,9 +123,10 @@ class AlertService {
           'data': {'hasVoted': false, 'voteType': null},
         };
       }
-      
-      Map<String, dynamic> voteData = snapshot.docs.first.data() as Map<String, dynamic>;
-      
+
+      Map<String, dynamic> voteData =
+          snapshot.docs.first.data() as Map<String, dynamic>;
+
       return {
         'message': 'Voto encontrado',
         'status': 200,
@@ -137,19 +142,22 @@ class AlertService {
   }
 
   // UPDATE - Votar (up ou down)
-  Future<Map<String, dynamic>> vote(String alertId, String userId, bool isUpvote) async {
+  Future<Map<String, dynamic>> vote(
+    String alertId,
+    String userId,
+    bool isUpvote,
+  ) async {
     try {
-      // Verificar se o usuário já votou
       final voteCheck = await checkUserVote(alertId, userId);
       final hasVoted = voteCheck['data']?['hasVoted'] ?? false;
       final previousVoteType = voteCheck['data']?['voteType'];
-      
-      // Transação para garantir consistência
+
       return await firestore.runTransaction((transaction) async {
-        // Obter documento do alerta
-        DocumentReference alertRef = firestore.collection(collectionName).doc(alertId);
+        DocumentReference alertRef = firestore
+            .collection(collectionName)
+            .doc(alertId);
         DocumentSnapshot alertSnapshot = await transaction.get(alertRef);
-        
+
         if (!alertSnapshot.exists) {
           return {
             'message': 'Alerta não encontrado',
@@ -157,42 +165,38 @@ class AlertService {
             'data': null,
           };
         }
-        
-        Map<String, dynamic> alertData = alertSnapshot.data() as Map<String, dynamic>;
+
+        Map<String, dynamic> alertData =
+            alertSnapshot.data() as Map<String, dynamic>;
         int ups = alertData['ups'] ?? 0;
         int downs = alertData['downs'] ?? 0;
-        
-        // Se já votou, remover voto anterior
+
         if (hasVoted) {
-          // Obter referência do voto existente
           QuerySnapshot voteSnapshot = await firestore
               .collection(votesCollectionName)
               .where('alertId', isEqualTo: alertId)
               .where('userId', isEqualTo: userId)
               .limit(1)
               .get();
-          
+
           DocumentReference voteRef = voteSnapshot.docs.first.reference;
-          
-          // Se o tipo de voto é o mesmo, remover o voto
-          if ((previousVoteType == 'up' && isUpvote) || 
+
+          if ((previousVoteType == 'up' && isUpvote) ||
               (previousVoteType == 'down' && !isUpvote)) {
-            // Remover voto
             transaction.delete(voteRef);
-            
-            // Atualizar contadores
+
             if (previousVoteType == 'up') {
               ups--;
             } else {
               downs--;
             }
-            
+
             transaction.update(alertRef, {
               'ups': ups,
               'downs': downs,
               'updatedAt': FieldValue.serverTimestamp(),
             });
-            
+
             return {
               'message': 'Voto removido',
               'status': 200,
@@ -204,7 +208,7 @@ class AlertService {
               'voteType': isUpvote ? 'up' : 'down',
               'updatedAt': FieldValue.serverTimestamp(),
             });
-            
+
             // Atualizar contadores
             if (isUpvote) {
               ups++;
@@ -216,7 +220,9 @@ class AlertService {
           }
         } else {
           // Novo voto
-          DocumentReference voteRef = firestore.collection(votesCollectionName).doc();
+          DocumentReference voteRef = firestore
+              .collection(votesCollectionName)
+              .doc();
           transaction.set(voteRef, {
             'alertId': alertId,
             'userId': userId,
@@ -224,7 +230,7 @@ class AlertService {
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          
+
           // Atualizar contadores
           if (isUpvote) {
             ups++;
@@ -232,14 +238,14 @@ class AlertService {
             downs++;
           }
         }
-        
+
         // Atualizar alerta
         transaction.update(alertRef, {
           'ups': ups,
           'downs': downs,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        
+
         return {
           'message': 'Voto registrado com sucesso',
           'status': 200,
@@ -255,38 +261,10 @@ class AlertService {
     }
   }
 
-  // Métodos legados para compatibilidade, agora usam o método vote
-  Future<Map<String, dynamic>> incrementUp(String alertId) async {
-    try {
-      const String userId = "usuario_teste_123"; // Temporário, ideal é usar autenticação
-      return await vote(alertId, userId, true);
-    } catch (e) {
-      return {
-        'message': 'Erro ao registrar voto positivo: $e',
-        'status': 500,
-        'data': null,
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> incrementDown(String alertId) async {
-    try {
-      const String userId = "usuario_teste_123"; // Temporário, ideal é usar autenticação
-      return await vote(alertId, userId, false);
-    } catch (e) {
-      return {
-        'message': 'Erro ao registrar voto negativo: $e',
-        'status': 500,
-        'data': null,
-      };
-    }
-  }
-
-  // DELETE - Excluir um alerta
   Future<Map<String, dynamic>> deleteAlert(String alertId) async {
     try {
       await firestore.collection(collectionName).doc(alertId).delete();
-      
+
       return {
         'message': 'Alerta excluído com sucesso',
         'status': 200,

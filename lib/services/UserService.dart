@@ -8,7 +8,7 @@ class UserService {
     try {
       await firestore.collection('users').add({
         'name': userData['name'],
-        'contato': userData['contact'], // cuidado no frontend para usar 'contato' também
+        'contato': userData['contact'],
         'email': userData['email'],
         'password': userData['password'],
       });
@@ -46,18 +46,10 @@ class UserService {
           'data': usuario,
         };
       } else {
-        return {
-          'message': 'Senha incorreta',
-          'status': 401,
-          'data': null,
-        };
+        return {'message': 'Senha incorreta', 'status': 401, 'data': null};
       }
     } catch (e) {
-      return {
-        'message': 'Erro no login: $e',
-        'status': 500,
-        'data': null,
-      };
+      return {'message': 'Erro no login: $e', 'status': 500, 'data': null};
     }
   }
 
@@ -69,11 +61,14 @@ class UserService {
           .where('email', isEqualTo: email)
           .limit(1)
           .get();
+
       if (snapshot.docs.isEmpty) {
         return null;
       }
+
       final doc = snapshot.docs.first;
-      return doc.data();
+
+      return {'id': doc.id, ...doc.data()};
     } catch (e) {
       return null;
     }
