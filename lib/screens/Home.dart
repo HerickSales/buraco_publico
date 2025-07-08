@@ -65,6 +65,17 @@ class _HomeState extends State<Home> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+
+      switch(index){
+        case 1:
+          _title = "Lista";
+          break;
+        case 2: 
+          _title = "Perfil";
+          break;
+        default:
+        _title = "Mapa";
+      }
     });
   }
 
