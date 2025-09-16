@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 
 import 'package:buraco/services/UserService.dart';
@@ -9,13 +12,13 @@ import 'package:buraco/components/CustomAppBar.dart';
 class Register extends StatelessWidget {
   Register({Key? key}) : super(key: key);
 
-  final UserService _userService = UserService();
   final Map<String, dynamic> userData = {
     'name': '',
     'email': '',
     'contact': '',
     'password': '',
   };
+  final UserService _userService = UserService();
 
   @override
   Widget build(BuildContext context) {

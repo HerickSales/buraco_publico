@@ -2,12 +2,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/alert/AlertManager.dart';
+import '../../components/alert/CreateAlertDialog.dart';
+import '../../services/ImageUploadService.dart';
 import '../../services/AlertService.dart';
 import '../../components/alert/AlertMarker.dart';
 import '../../components/alert/AlertDetailsDialog.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/alert/CreateAlertDialog.dart';
+import '../../services/ImageUploadService.dart';
 
 class MapScreen extends StatefulWidget {
   final String userId;
@@ -197,21 +200,15 @@ class _MapScreenState extends State<MapScreen> {
       LatLng ponto, String? descricao, File? imageFile) async {
     String? imageUrl;
     if (imageFile != null) {
-      try {
-        final String fileName = '${DateTime.now().millisecondsSinceEpoch}.${imageFile.path.split('.').last}';
-        await Supabase.instance.client.storage
-            .from('alert')
-            .upload(fileName, imageFile);
-        imageUrl = Supabase.instance.client.storage
-            .from('alert')
-            .getPublicUrl(fileName);
-      } catch (e) {
+      final imageUploadService = ImageUploadService();
+      imageUrl = await imageUploadService.uploadImage(imageFile);
+      if (imageUrl == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao fazer upload da imagem: $e')),
+            const SnackBar(content: Text('Erro ao fazer upload da imagem.')),
           );
         }
-        return; // Não continue se o upload falhar
+        return;
       }
     }
 
@@ -260,7 +257,7 @@ class _MapScreenState extends State<MapScreen> {
                   urlTemplate:
                       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                   subdomains: ['a', 'b', 'c'],
-                  userAgentPackageName: 'com.example.app',
+                  userAgentPackageName: 'com.example.buraco',
                 ),
                 MarkerLayer(markers: _marcadores),
               ],

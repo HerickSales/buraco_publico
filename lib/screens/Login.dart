@@ -1,6 +1,7 @@
 //tela para fazer login e cadastro de usuário
 
 import 'package:buraco/services/UserPreferencesService.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:buraco/screens/Home.dart';
 import 'package:buraco/screens/Register.dart';
@@ -20,6 +21,7 @@ class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final UserService _userService = UserService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -72,13 +74,21 @@ class _LoginState extends State<Login> {
     final response = await _userService.login(email, password);
 
     if (response['status'] == 200 && response['data'] != null) {
-      var userPrefService = UserPreferencesService();
-      userPrefService.saveUserData(response['data']);
+      // Fetch the Firebase User after successful login
+      User? firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        var userPrefService = UserPreferencesService();
+        await userPrefService.saveUserData({'uid': firebaseUser.uid, 'email': firebaseUser.email});
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => Home()),
-      );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Home()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro: Usuário Firebase não encontrado após login.')),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(response['message'] ?? 'Erro desconhecido')),

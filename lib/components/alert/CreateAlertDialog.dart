@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,10 +9,10 @@ class CreateAlertDialog extends StatefulWidget {
   final Function(LatLng, String?, File?) onCreateAlert;
 
   const CreateAlertDialog({
-    Key? key,
+    super.key,
     required this.point,
     required this.onCreateAlert,
-  }) : super(key: key);
+  });
 
   @override
   _CreateAlertDialogState createState() => _CreateAlertDialogState();
@@ -21,15 +22,46 @@ class _CreateAlertDialogState extends State<CreateAlertDialog> {
   final _descricaoController = TextEditingController();
   File? _imageFile;
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(source: source);
 
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
       });
     }
+  }
+
+  void _showImageSourceSelection(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galeria'),
+                onTap: () {
+                  _pickImage(ImageSource.gallery);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Câmera'),
+                onTap: () {
+                  _pickImage(ImageSource.camera);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -52,13 +84,17 @@ class _CreateAlertDialogState extends State<CreateAlertDialog> {
             ),
             const SizedBox(height: 16),
             _imageFile == null
-                ? TextButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Adicionar Foto'),
+                ? Column(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _showImageSourceSelection(context),
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Adicionar Foto'),
+                      ),
+                    ],
                   )
                 : GestureDetector(
-                    onTap: _pickImage,
+                    onTap: () => _showImageSourceSelection(context),
                     child: Image.file(
                       _imageFile!,
                       height: 100,
@@ -76,7 +112,11 @@ class _CreateAlertDialogState extends State<CreateAlertDialog> {
         ),
         ElevatedButton(
           onPressed: () {
-            widget.onCreateAlert(widget.point, _descricaoController.text, _imageFile);
+            widget.onCreateAlert(
+              widget.point,
+              _descricaoController.text,
+              _imageFile,
+            );
             Navigator.pop(context);
           },
           child: const Text('Criar Alerta'),
@@ -85,4 +125,3 @@ class _CreateAlertDialogState extends State<CreateAlertDialog> {
     );
   }
 }
-

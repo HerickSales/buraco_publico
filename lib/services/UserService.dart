@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -6,20 +7,34 @@ class UserService {
   // Criação de usuário
   Future<Map<String, dynamic>> createUser(Map<String, dynamic> userData) async {
     try {
-      await firestore.collection('users').add({
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: userData['email'],
+        password: userData['password'],
+      );
+
+      String uid = userCredential.user!.uid;
+
+      await firestore.collection('users').doc(uid).set({
         'name': userData['name'],
-        'contato': userData['contact'],
+        'contact': userData['contact'],
         'email': userData['email'],
-        'password': userData['password'],
+        'uid': uid,
       });
+
       return {
         'message': 'Usuário criado com sucesso',
         'status': 201,
+        'data': {'uid': uid, 'email': userData['email']},
+      };
+    } on FirebaseAuthException catch (e) {
+      return {
+        'message': e.message ?? 'Erro ao criar usuário',
+        'status': 500,
         'data': null,
       };
     } catch (e) {
       return {
-        'message': 'Erro ao criar usuário: $e',
+        'message': 'Erro desconhecido ao criar usuário: $e',
         'status': 500,
         'data': null,
       };
@@ -29,47 +44,45 @@ class UserService {
   // Login do usuário
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final usuario = await getUserByEmail(email);
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      if (usuario == null) {
-        return {
-          'message': 'Usuário não encontrado',
-          'status': 404,
-          'data': null,
-        };
-      }
+      String uid = userCredential.user!.uid;
+      final userData = await getUserData(uid);
 
-      if (usuario['password'] == password) {
-        return {
-          'message': 'Login bem-sucedido',
-          'status': 200,
-          'data': usuario,
-        };
+      return {
+        'message': 'Login bem-sucedido',
+        'status': 200,
+        'data': userData,
+      };
+    } on FirebaseAuthException catch (e) {
+      String message;
+      if (e.code == 'user-not-found') {
+        message = 'Nenhum usuário encontrado para este email.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Senha incorreta fornecida para este usuário.';
       } else {
-        return {'message': 'Senha incorreta', 'status': 401, 'data': null};
+        message = e.message ?? 'Erro no login';
       }
+      return {'message': message, 'status': 401, 'data': null};
     } catch (e) {
-      return {'message': 'Erro no login: $e', 'status': 500, 'data': null};
+      return {'message': 'Erro desconhecido no login: $e', 'status': 500, 'data': null};
     }
   }
 
-  // Buscar dados de um usuário por e-mail
-  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+  // Buscar dados de um usuário por UID
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
     try {
-      final snapshot = await firestore
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isEmpty) {
+      final doc = await firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return {'id': doc.id, ...doc.data()!};
+      } else {
         return null;
       }
-
-      final doc = snapshot.docs.first;
-
-      return {'id': doc.id, ...doc.data()};
     } catch (e) {
+      print('Erro ao buscar dados do usuário: $e');
       return null;
     }
   }
