@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/alert/AlertManager.dart';
 import '../../services/AlertService.dart';
 import '../../components/alert/AlertMarker.dart';
@@ -12,7 +14,7 @@ class MapScreen extends StatefulWidget {
   final AlertService alertService;
 
   const MapScreen({Key? key, required this.userId, required this.alertService})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -191,11 +193,33 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Future<void> _criarAlerta(LatLng ponto, String? descricao) async {
+  Future<void> _criarAlerta(
+      LatLng ponto, String? descricao, File? imageFile) async {
+    String? imageUrl;
+    if (imageFile != null) {
+      try {
+        final String fileName = '${DateTime.now().millisecondsSinceEpoch}.${imageFile.path.split('.').last}';
+        await Supabase.instance.client.storage
+            .from('alert')
+            .upload(fileName, imageFile);
+        imageUrl = Supabase.instance.client.storage
+            .from('alert')
+            .getPublicUrl(fileName);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao fazer upload da imagem: $e')),
+          );
+        }
+        return; // Não continue se o upload falhar
+      }
+    }
+
     try {
       final resultado = await _alertManager.createAlert(
         coordinates: ponto,
         description: descricao,
+        imageUrl: imageUrl,
       );
 
       if (!mounted) return;

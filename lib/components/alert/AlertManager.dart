@@ -83,6 +83,7 @@ class AlertManager extends ChangeNotifier {
   Future<Map<String, dynamic>> createAlert({
     required LatLng coordinates,
     String? description,
+    String? imageUrl,
   }) async {
     try {
       _isLoading = true;
@@ -92,6 +93,7 @@ class AlertManager extends ChangeNotifier {
         coordinates: coordinates,
         userId: userId,
         description: description,
+        imageUrl: imageUrl,
       );
 
       if (result['status'] == 201) {

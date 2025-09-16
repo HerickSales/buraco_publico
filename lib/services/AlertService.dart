@@ -11,6 +11,7 @@ class AlertService {
     required LatLng coordinates,
     required String userId,
     String? description,
+    String? imageUrl,
   }) async {
     try {
       // Criando um novo alerta com os valores padrão para ups e downs
@@ -21,6 +22,7 @@ class AlertService {
             'longitude': coordinates.longitude,
             'userId': userId,
             'description': description ?? '',
+            'imageUrl': imageUrl,
             'ups': 0,
             'downs': 0,
             'createdAt': FieldValue.serverTimestamp(),
@@ -36,6 +38,7 @@ class AlertService {
           'longitude': coordinates.longitude,
           'userId': userId,
           'description': description ?? '',
+          'imageUrl': imageUrl,
           'ups': 0,
           'downs': 0,
         },
